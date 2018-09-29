@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:title="我是标题">
+    <PreferenceCategory android:title="分类一">
+
+        <ListPreference
+            android:defaultValue="60"
+            android:entries="@array/grade_key"
+            android:entryValues="@array/grade_value"
+            android:key="one_one"
+            android:title="ONE_ONE" />
+
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="one_two"
+            android:summary="状态"
+            android:summaryOff="当前为关闭状态"
+            android:summaryOn="当前为开启状态"
+            android:title="ONE_TWO" />
+
+        <ListPreference
+            android:defaultValue="70"
+            android:dependency="one_two"
+            android:dialogTitle="对话框标题"
+            android:entries="@array/grade_key"
+            android:entryValues="@array/grade_value"
+            android:key="one_three"
+            android:summary="ONE_TWO 开启时该项才能点击"
+            android:title="ONE_THREE" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="分类二">
+        <ListPreference
+            android:defaultValue="80"
+            android:entries="@array/grade_key"
+            android:entryValues="@array/grade_value"
+            android:key="two_one"
+            android:title="TWO_ONE" />
+
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="two_two"
+            android:title="TWO_TWO" />
+
+        <ListPreference
+            android:defaultValue="90"
+            android:entries="@array/grade_key"
+            android:entryValues="@array/grade_value"
+            android:key="two_three"
+            android:title="TWO_THREE" />
+    </PreferenceCategory>
+</PreferenceScreen>
