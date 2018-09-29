@@ -11,8 +11,10 @@ import android.os.Environment
 import android.preference.PreferenceManager
 import android.provider.MediaStore
 import android.util.Log
+import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.WindowManager
 import android.widget.ImageView
 import java.io.File
 import java.io.FileOutputStream
@@ -122,6 +124,31 @@ class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Call
     }
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {
+        mCamera?.apply {
+            val rotation = getDisplayOrientation()
+            val newParameters = parameters
+            // 设置预览帧数据，以及拍摄照片的方向
+            newParameters.setRotation(rotation)
+            parameters = newParameters
+            // 指定预览的旋转角度
+            setDisplayOrientation(getDisplayOrientation())
+        }
+    }
+
+    private fun getDisplayOrientation(): Int {
+        val display = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
+        val rotation = display.rotation
+        var degrees = 0
+        when (rotation) {
+            Surface.ROTATION_0 -> degrees = 0
+            Surface.ROTATION_90 -> degrees = 90
+            Surface.ROTATION_180 -> degrees = 180
+            Surface.ROTATION_270 -> degrees = 270
+        }
+
+        val camInfo = Camera.CameraInfo()
+        Camera.getCameraInfo(Camera.CameraInfo.CAMERA_FACING_BACK, camInfo)
+        return (camInfo.orientation - degrees + 360) % 360
     }
 
     private fun getAppName(): String {
@@ -131,7 +158,6 @@ class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Call
             // 利用系统api getPackageName()得到的包名，这个异常根本不可能发生
             ""
         }
-
     }
 
     private fun getOutputMediaFile(type: Int): File? {
@@ -243,6 +269,8 @@ class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Call
             setPreviewDisplay(holder.surface)
 
             try {
+                // 视频的旋转并不是编码层面的旋转，视频帧数据并没有发生旋转，而只是在视频中增加了参数，希望播放器按照指定的旋转角度旋转后播放，所以具体效果因播放器而异
+                setOrientationHint(getDisplayOrientation())
                 prepare()
             } catch (e: IllegalStateException) {
                 Log.d(TAG, "IllegalStateException preparing MediaRecorder: " + e.message)
