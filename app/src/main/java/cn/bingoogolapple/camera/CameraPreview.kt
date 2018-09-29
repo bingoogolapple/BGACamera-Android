@@ -1,6 +1,7 @@
 package cn.bingoogolapple.camera
 
 import android.content.Context
+import android.graphics.Rect
 import android.hardware.Camera
 import android.media.CamcorderProfile
 import android.media.MediaActionSound
@@ -11,10 +12,7 @@ import android.os.Environment
 import android.preference.PreferenceManager
 import android.provider.MediaStore
 import android.util.Log
-import android.view.Surface
-import android.view.SurfaceHolder
-import android.view.SurfaceView
-import android.view.WindowManager
+import android.view.*
 import android.widget.ImageView
 import java.io.File
 import java.io.FileOutputStream
@@ -77,6 +75,34 @@ class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Call
         Log.d(TAG, log.toString())
     }
 
+    private fun adjustDisplayRatio(rotation: Int) {
+        mCamera?.let {
+            val parent = parent as ViewGroup
+            val rect = Rect()
+            parent.getLocalVisibleRect(rect)
+            val width = rect.width()
+            val height = rect.height()
+            val previewSize = it.parameters.previewSize
+            val previewWidth: Int
+            val previewHeight: Int
+            if (rotation == 90 || rotation == 270) {
+                previewWidth = previewSize.height
+                previewHeight = previewSize.width
+            } else {
+                previewWidth = previewSize.width
+                previewHeight = previewSize.height
+            }
+
+            if (width * previewHeight > height * previewWidth) {
+                val scaledChildWidth = previewWidth * height / previewHeight
+                layout((width - scaledChildWidth) / 2, 0, (width + scaledChildWidth) / 2, height)
+            } else {
+                val scaledChildHeight = previewHeight * width / previewWidth
+                layout(0, (height - scaledChildHeight) / 2, width, (height + scaledChildHeight) / 2)
+            }
+        }
+    }
+
     private fun openCamera() {
         if (mCamera != null) {
             return
@@ -132,6 +158,8 @@ class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Call
             parameters = newParameters
             // 指定预览的旋转角度
             setDisplayOrientation(getDisplayOrientation())
+            // 实时调整预览纵横比
+            adjustDisplayRatio(rotation)
         }
     }
 
