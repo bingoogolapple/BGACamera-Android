@@ -36,6 +36,11 @@
             android:name=".StudyActivity"
             android:theme="@android:style/Theme.Material.Light"
             tools:ignore="NewApi" />
+
+        <activity
+            android:name=".PlayActivity"
+            android:theme="@android:style/Theme.Material.Light"
+            tools:ignore="NewApi" />
     </application>
 
 </manifest>

@@ -30,6 +30,7 @@ class MainActivity : Activity(), EasyPermissions.PermissionCallbacks, View.OnCli
         findViewById<Button>(R.id.btn_main_settings).setOnClickListener(this)
         findViewById<Button>(R.id.btn_main_take_picture).setOnClickListener(this)
         findViewById<Button>(R.id.btn_main_capture_video).setOnClickListener(this)
+        findViewById<ImageView>(R.id.iv_main_preview).setOnClickListener(this)
         findViewById<Button>(R.id.btn_main_study).setOnClickListener(this)
     }
 
@@ -48,6 +49,11 @@ class MainActivity : Activity(), EasyPermissions.PermissionCallbacks, View.OnCli
                 } else if (mPreview.startRecording()) {
                     findViewById<Button>(R.id.btn_main_capture_video).text = "停止"
                 }
+            }
+            R.id.iv_main_preview -> {
+                val intent = Intent(this, PlayActivity::class.java)
+                intent.setDataAndType(mPreview.getOutputMediaFileUri(), mPreview.getOutputMediaFileType())
+                startActivity(intent)
             }
             R.id.btn_main_study -> startActivity(Intent(this, StudyActivity::class.java))
         }
