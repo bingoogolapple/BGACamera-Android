@@ -2,6 +2,7 @@ package cn.bingoogolapple.camera
 
 import android.content.Context
 import android.graphics.Rect
+import android.graphics.RectF
 import android.hardware.Camera
 import android.media.CamcorderProfile
 import android.media.MediaActionSound
@@ -11,6 +12,7 @@ import android.net.Uri
 import android.os.Environment
 import android.preference.PreferenceManager
 import android.provider.MediaStore
+import android.support.v4.math.MathUtils
 import android.util.Log
 import android.view.*
 import android.widget.ImageView
@@ -31,6 +33,8 @@ class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Call
     private var mOutputMediaFileUri: Uri? = null
     private var mOutputMediaFileType: String? = null
     private var mMediaRecorder: MediaRecorder? = null
+    private var oldDist = 1f
+    private var touchFocusing = false
 
     init {
         holder.addCallback(this)
@@ -63,9 +67,11 @@ class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Call
         for (whiteBalance in parameters.supportedWhiteBalance) {
             log.append(whiteBalance).append("、")
         }
-        log.append("\n支持的场景模式有：\n    ")
-        for (sceneMode in parameters.supportedSceneModes) {
-            log.append(sceneMode).append("、")
+        parameters.supportedSceneModes?.let {
+            log.append("\n支持的场景模式有：\n    ")
+            for (sceneMode in it) {
+                log.append(sceneMode).append("、")
+            }
         }
         log.append("\n支持的闪光灯模式有：\n    ")
         for (flashMode in parameters.supportedFlashModes) {
@@ -322,9 +328,126 @@ class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Call
         mCamera?.apply { lock() }
     }
 
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        mCamera?.let {
+            if (event.pointerCount == 1) {
+                if (event.action and MotionEvent.ACTION_MASK == MotionEvent.ACTION_UP) {
+                    handleFocusMetering(event, it)
+                }
+            } else {
+                when (event.action and MotionEvent.ACTION_MASK) {
+                    MotionEvent.ACTION_POINTER_DOWN -> oldDist = getFingerSpacing(event)
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_MOVE -> {
+                        val newDist = getFingerSpacing(event)
+                        if (newDist > oldDist) {
+                            handleZoom(true, it)
+                        } else if (newDist < oldDist) {
+                            handleZoom(false, it)
+                        }
+                        oldDist = newDist
+                    }
+                }
+            }
+        }
+        return true
+    }
+
+    private fun handleFocusMetering(event: MotionEvent, camera: Camera) {
+        if (touchFocusing) {
+            return
+        }
+        touchFocusing = true
+
+        var isNeedUpdate = false
+        val newParams = camera.parameters
+        val currentFocusMode = newParams.focusMode
+        Log.i(TAG, "老的对焦模式为$currentFocusMode")
+        if (newParams.maxNumFocusAreas > 0) {
+            Log.i(TAG, "支持触摸对焦")
+            isNeedUpdate = true
+            val focusAreas = arrayListOf<Camera.Area>()
+            val focusRect = calculateTapArea(event.x, event.y, 1f, width, height)
+            focusAreas.add(Camera.Area(focusRect, 800))
+            newParams.focusAreas = focusAreas
+            newParams.focusMode = Camera.Parameters.FOCUS_MODE_MACRO
+        } else {
+            Log.i(TAG, "不支持触摸对焦")
+        }
+
+        if (newParams.maxNumMeteringAreas > 0) {
+            Log.i(TAG, "支持触摸测光")
+            isNeedUpdate = true
+            val meteringAreas = arrayListOf<Camera.Area>()
+            val meteringRect = calculateTapArea(event.x, event.y, 1.5f, width, height)
+            meteringAreas.add(Camera.Area(meteringRect, 800))
+            newParams.meteringAreas = meteringAreas
+        } else {
+            Log.i(TAG, "不支持触摸测光")
+        }
+
+        if (isNeedUpdate) {
+            camera.cancelAutoFocus()
+            camera.parameters = newParams
+            camera.autoFocus { success, camera ->
+                if (success) {
+                    Log.i(TAG, "对焦成功")
+                } else {
+                    Log.i(TAG, "对焦失败")
+                }
+                touchFocusing = false
+                val recoverParams = camera.parameters
+                recoverParams.focusMode = currentFocusMode
+                camera.parameters = recoverParams
+                Log.i(TAG, "还原对焦模式")
+            }
+        } else {
+            touchFocusing = false
+        }
+    }
+
+    private fun handleZoom(isZoomIn: Boolean, camera: Camera) {
+        val params = camera.parameters
+        if (params.isZoomSupported) {
+            var zoom = params.zoom
+            if (isZoomIn && zoom < params.maxZoom) {
+                Log.i(TAG, "放大")
+                zoom++
+            } else if (!isZoomIn && zoom > 0) {
+                Log.i(TAG, "缩小")
+                zoom--
+            } else {
+                Log.i(TAG, "既不放大也不缩小")
+            }
+            params.zoom = zoom
+            camera.parameters = params
+        } else {
+            Log.i(TAG, "不支持缩放")
+        }
+    }
+
     companion object {
         private val TAG = CameraPreview::class.java.simpleName
         private const val MEDIA_TYPE_IMAGE = 1
         private const val MEDIA_TYPE_VIDEO = 2
+
+        private fun calculateTapArea(x: Float, y: Float, coefficient: Float, width: Int, height: Int): Rect {
+            val focusAreaSize = 300f
+            val areaSize = (focusAreaSize * coefficient).toInt()
+            val centerX = (x / width * 2000 - 1000).toInt()
+            val centerY = (y / height * 2000 - 1000).toInt()
+
+            val halfAreaSize = areaSize / 2
+            val rectF = RectF(MathUtils.clamp(centerX - halfAreaSize, -1000, 1000).toFloat(),
+                    MathUtils.clamp(centerY - halfAreaSize, -1000, 1000).toFloat(),
+                    MathUtils.clamp(centerX + halfAreaSize, -1000, 1000).toFloat(),
+                    MathUtils.clamp(centerY + halfAreaSize, -1000, 1000).toFloat())
+            return Rect(Math.round(rectF.left), Math.round(rectF.top), Math.round(rectF.right), Math.round(rectF.bottom))
+        }
+
+        private fun getFingerSpacing(event: MotionEvent): Float {
+            val x = event.getX(0) - event.getX(1)
+            val y = event.getY(0) - event.getY(1)
+            return Math.sqrt((x * x + y * y).toDouble()).toFloat()
+        }
     }
 }

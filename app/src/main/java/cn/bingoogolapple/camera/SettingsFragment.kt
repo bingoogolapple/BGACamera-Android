@@ -108,9 +108,9 @@ class SettingsFragment : PreferenceFragment(), SharedPreferences.OnSharedPrefere
         stringListToListPreference(stringList, key)
     }
 
-    private fun stringListToListPreference(list: List<String>, key: String) {
-        val charSeq = list.toTypedArray<CharSequence>()
+    private fun stringListToListPreference(list: List<String>?, key: String) {
         val listPref = preferenceScreen.findPreference(key) as ListPreference
+        val charSeq = list?.toTypedArray() ?: arrayOf()
         listPref.entries = charSeq
         listPref.entryValues = charSeq
     }
