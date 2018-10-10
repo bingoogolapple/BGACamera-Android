@@ -28,7 +28,7 @@ import java.util.*
  * 创建时间:2018/9/28
  * 描述:
  */
-class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Callback {
+class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Callback, Camera.PreviewCallback {
     private var mCamera: Camera? = null
     private var mOutputMediaFileUri: Uri? = null
     private var mOutputMediaFileType: String? = null
@@ -127,6 +127,8 @@ class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Call
             mCamera?.apply {
                 // 告知将预览帧数据交给谁
                 setPreviewDisplay(holder)
+                // 每当有预览帧生成时就会回调 onPreviewFrame 方法
+                setPreviewCallback(this@CameraPreview)
                 // 开始预览
                 startPreview()
                 log(parameters)
@@ -145,6 +147,15 @@ class CameraPreview(context: Context) : SurfaceView(context), SurfaceHolder.Call
             release()
         }
         mCamera = null
+    }
+
+    override fun onPreviewFrame(data: ByteArray?, camera: Camera?) {
+        try {
+            Log.i(TAG, "模拟处理预览帧数据")
+            Thread.sleep(500)
+        } catch (e: InterruptedException) {
+            e.printStackTrace()
+        }
     }
 
     override fun surfaceCreated(surfaceHolder: SurfaceHolder) {
